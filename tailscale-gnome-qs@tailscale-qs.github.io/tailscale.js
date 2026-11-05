@@ -408,8 +408,8 @@ export const Tailscale = GObject.registerClass(
                     this._selfNode = status.Self || {};
                     // eslint-disable-next-line no-await-in-loop
                     this._prefs = await this._client.request('GET', '/localapi/v0/prefs');
-                    // eslint-disable-next-line no-await-in-loop
                     // Profiles require operator access; don't let a 403 stop the listener
+                    // eslint-disable-next-line no-await-in-loop
                     this._profiles = await this._client.request('GET', '/localapi/v0/profiles/').catch(error => {
                         console.warn(error.message);
                         return [];
