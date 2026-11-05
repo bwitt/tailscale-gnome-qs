@@ -8,6 +8,17 @@ Gio._promisify(Gio.DataInputStream.prototype, 'read_line_async');
 Gio._promisify(Soup.Session.prototype, 'send_and_read_async');
 Gio._promisify(Soup.Session.prototype, 'send_async');
 
+// Pref keys mapped to the properties that expose them
+const PREF_PROPERTIES = {
+    WantRunning: 'running',
+    CorpDNS: 'accept-dns',
+    RouteAll: 'accept-routes',
+    ExitNodeAllowLANAccess: 'allow-lan-access',
+    ShieldsUp: 'shields-up',
+    RunSSH: 'ssh',
+    ExitNodeID: 'exit-node',
+};
+
 class TailscaleApiClient {
     constructor() {
         const address = new Gio.UnixSocketAddress({
@@ -52,6 +63,10 @@ class TailscaleApiClient {
 
         const responseBytes = await this.session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null);
         const response = this.decoder.decode(responseBytes.get_data());
+        const status = message.get_status();
+        if (status < 200 || status >= 300)
+            throw new Error(`${method} ${path}: ${status} ${response.trim()}`);
+
         const contentType = message.response_headers.get_one('Content-Type');
         return contentType === 'application/json' ? JSON.parse(response) : response;
     }
@@ -394,7 +409,11 @@ export const Tailscale = GObject.registerClass(
                     // eslint-disable-next-line no-await-in-loop
                     this._prefs = await this._client.request('GET', '/localapi/v0/prefs');
                     // eslint-disable-next-line no-await-in-loop
-                    this._profiles = await this._client.request('GET', '/localapi/v0/profiles/');
+                    // Profiles require operator access; don't let a 403 stop the listener
+                    this._profiles = await this._client.request('GET', '/localapi/v0/profiles/').catch(error => {
+                        console.warn(error.message);
+                        return [];
+                    });
                     this.notify('profiles');
                     this._parseResponse();
 
@@ -493,7 +512,11 @@ export const Tailscale = GObject.registerClass(
                     this._prefs = prefs;
                     this._parseResponse();
                 },
-                error => console.error(error)
+                error => {
+                    console.error(error);
+                    // Revert UI toggles to the unchanged state
+                    Object.keys(prefUpdatePartial).forEach(key => this.notify(PREF_PROPERTIES[key]));
+                }
             );
         }
 
