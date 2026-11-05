@@ -455,12 +455,12 @@ export const Tailscale = GObject.registerClass(
                             this._parseResponse();
                     }
                 } catch (error) {
-                    if (!(error instanceof GLib.Error && error.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))) {
-                        console.error(error);
-                        this._processRunning({WantRunning: false});
-                    }
+                    // Stop only on destroy; otherwise retry (e.g. tailscaled restarted or not up yet)
+                    if (!this._cancelable || this._cancelable.is_cancelled())
+                        break;
 
-                    break;
+                    console.error(error);
+                    this._processRunning({WantRunning: false});
                 }
                 // eslint-disable-next-line no-await-in-loop
                 await delayPromise(5000);
