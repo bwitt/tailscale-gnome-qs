@@ -403,7 +403,8 @@ const TailscaleMenuToggle = GObject.registerClass(
               for (const p of obj.profiles) {
                   if (!p.NetworkProfile || !p.NetworkProfile.DomainName)
                       continue; // Skip invalid profiles
-                  const enabled = obj._prefs.ControlURL === p.ControlURL && obj._prefs.Config.UserProfile.ID === p.UserProfile.ID;
+                  // Config is null while logged out or on a new profile
+                  const enabled = obj._prefs?.ControlURL === p.ControlURL && obj._prefs?.Config?.UserProfile.ID === p.UserProfile.ID;
                   const onClick = () => {
                       tailscale.profiles = p.ID;
                   };
